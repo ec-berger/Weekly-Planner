@@ -16,7 +16,7 @@ class WeeklyPlanner {
             ],
             'Swimming': [
                 { id: 'swim', type: 'activity', subcategory: 'swim', duration: 90, distance: null, title: 'Swimming', colorClass: 'activity-swim' },
-                { id: 'swim-ZHS', type: 'activity', subcategory: 'swim (ZHS)', duration: 90, distance: null, title: 'Swimming (ZHS)', colorClass: 'activity-swim-ZHS' }
+                { id: 'swim-zhs', type: 'activity', subcategory: 'swim (zhs)', duration: 90, distance: null, title: 'Swimming (ZHS)', colorClass: 'activity-swim-zhs' }
             ],
             'Gym': [
                 { id: 'gym-1', type: 'activity', subcategory: 'gym', duration: 90, distance: null, title: 'Gym Session A', colorClass: 'activity-gym' },
@@ -53,13 +53,13 @@ class WeeklyPlanner {
                 }
             },
             activity: {
-                subcategories: ['run (easy)', 'run (interval)', 'run (long)', 'handball', 'swim (ZHS)', 'swim', 'work', 'uni', 'gym'],
+                subcategories: ['run (easy)', 'run (interval)', 'run (long)', 'handball', 'swim (zhs)', 'swim', 'work', 'uni', 'gym'],
                 colors: {
                     'run (easy)': 'activity-run-easy',
                     'run (interval)': 'activity-run-interval',
                     'run (long)': 'activity-run-long',
                     'handball': 'activity-handball',
-                    'swim (ZHS)': 'activity-swim-ZHS',
+                    'swim (zhs)': 'activity-swim-zhs',
                     'swim': 'activity-swim',
                     'work': 'activity-work',
                     'uni': 'activity-uni',
@@ -459,6 +459,7 @@ class WeeklyPlanner {
     }
 
     renderEntries() {
+        console.log('renderEntries() called with', this.entries.length, 'entries');
         // Clear existing entries
         document.querySelectorAll('.entry').forEach(entry => entry.remove());
 
@@ -480,8 +481,9 @@ class WeeklyPlanner {
         entryElement.draggable = true;
 
         // Calculate height based on duration (30min = 30px height)
+        // Subtract 4px total (2px top + 2px bottom) for spacing
         const durationHours = entry.duration / 60;
-        const height = durationHours * 60; // 30px per half-hour slot
+        const height = durationHours * 60 - 4; // 30px per half-hour slot minus spacing
         entryElement.style.height = `${height}px`;
         entryElement.style.zIndex = '20';
 
@@ -535,6 +537,14 @@ class WeeklyPlanner {
         let draggedEntry = null;
         let draggedPreset = null;
 
+        // Debug: check if day-slot elements exist
+        console.log('Day-slot elements found:', document.querySelectorAll('.day-slot').length);
+
+        // Global drop listener for debugging
+        document.addEventListener('drop', (e) => {
+            console.log('GLOBAL DROP detected on:', e.target.className, e.target);
+        }, true); // Use capture phase
+
         // Handle drag start
         document.addEventListener('dragstart', (e) => {
             console.log('Drag start on:', e.target.className, e.target.dataset);
@@ -543,8 +553,8 @@ class WeeklyPlanner {
                 draggedEntry = e.target;
                 e.target.classList.add('dragging');
                 e.dataTransfer.effectAllowed = 'move';
-                console.log('Started dragging entry:', draggedEntry.dataset.entryId);
-                console.log('draggedEntry element:', draggedEntry);
+                console.log('Started dragging entry ID:', draggedEntry.dataset.entryId);
+                console.log('draggedEntry element:', draggedEntry.outerHTML);
             } else if (e.target.classList.contains('preset-block')) {
                 draggedPreset = e.target;
                 e.target.classList.add('dragging');
@@ -562,8 +572,7 @@ class WeeklyPlanner {
                     slot.classList.remove('drop-target', 'drag-invalid');
                 });
             }
-            draggedEntry = null;
-            draggedPreset = null;
+            // Don't clear draggedEntry/draggedPreset here - let drop handler do it
         });
 
         // Handle drag over
@@ -600,30 +609,46 @@ class WeeklyPlanner {
         // Handle drop
         document.addEventListener('drop', (e) => {
             e.preventDefault();
-            console.log('Drop event fired, draggedEntry:', draggedEntry, 'draggedPreset:', draggedPreset);
+            console.log('Drop event fired!');
+            console.log('- draggedEntry:', draggedEntry);
+            console.log('- draggedPreset:', draggedPreset);
+            console.log('- Drop target element:', e.target);
             
             // Find the day-slot element (might be nested)
             let targetSlot = e.target;
+            console.log('Looking for day-slot, starting from:', targetSlot);
             while (targetSlot && !targetSlot.classList.contains('day-slot')) {
+                console.log('Moving up to parent:', targetSlot.parentElement);
                 targetSlot = targetSlot.parentElement;
             }
+            
+            console.log('Final targetSlot:', targetSlot);
             
             if (targetSlot && targetSlot.classList.contains('day-slot')) {
                 console.log('Drop detected on slot:', targetSlot.dataset.day, targetSlot.dataset.hour);
                 
+                console.log('Checking what to process...');
                 if (draggedEntry) {
                     console.log('Processing entry drop...');
-                    const entryId = parseInt(draggedEntry.dataset.entryId);
+                    console.log('draggedEntry.dataset:', draggedEntry.dataset);
+                    const entryIdStr = draggedEntry.dataset.entryId;
+                    const entryId = Number(entryIdStr); // Use Number() instead of parseInt()
                     const newDay = targetSlot.dataset.day;
                     const newHour = parseInt(targetSlot.dataset.hour);
                     const newMinute = parseInt(targetSlot.dataset.minute);
                     const newTime = parseFloat(targetSlot.dataset.timeValue);
                     
-                    console.log('Entry ID:', entryId, 'New position:', newDay, newTime);
-                    console.log('All entries:', self.entries.map(e => ({ id: e.id, day: e.day, hour: e.hour })));
+                    console.log('Entry ID (string):', entryIdStr);
+                    console.log('Entry ID (parsed):', entryId, typeof entryId);
+                    console.log('New position:', newDay, newTime);
+                    console.log('All entries IDs:', self.entries.map(e => ({ id: e.id, type: typeof e.id })));
 
-                    // Update entry data
-                    const entry = self.entries.find(e => e.id === entryId);
+                    // Update entry data - try both number and string comparison
+                    let entry = self.entries.find(e => e.id === entryId);
+                    if (!entry) {
+                        // Try string comparison as fallback
+                        entry = self.entries.find(e => e.id.toString() === entryIdStr);
+                    }
                     console.log('Found entry:', entry);
                     if (entry) {
                         // Temporarily remove the entry to check placement
@@ -639,9 +664,10 @@ class WeeklyPlanner {
                             entry.minute = newMinute;
                             self.entries.splice(entryIndex, 0, entry);
                             
+                            console.log('Entry data updated:', { day: entry.day, hour: entry.hour, minute: entry.minute });
                             self.renderEntries();
                             self.updateDaySummaries();
-                            console.log('Entry moved successfully');
+                            console.log('Entry moved successfully - renderEntries() called');
                         } else {
                             // Restore original position
                             entry.day = originalDay;
@@ -656,10 +682,12 @@ class WeeklyPlanner {
                             }, 500);
                             console.log('Entry move failed - overlap detected');
                         }
+                    } else {
+                        console.log('ERROR: Entry not found! EntryId:', entryId, 'Available entries:', self.entries.map(e => e.id));
                     }
 
-                    draggedEntry = null;
                 } else if (draggedPreset) {
+                    console.log('Processing preset drop...');
                     console.log('Dropping preset:', draggedPreset.dataset.presetId);
                     const presetId = draggedPreset.dataset.presetId;
                     let preset = null;
@@ -716,13 +744,18 @@ class WeeklyPlanner {
                         }
                     }
 
-                    draggedPreset = null;
+                } else {
+                    console.log('No draggedEntry or draggedPreset - nothing to process');
                 }
 
                 // Clean up visual feedback
                 document.querySelectorAll('.drop-target, .drag-invalid').forEach(el => {
                     el.classList.remove('drop-target', 'drag-invalid');
                 });
+                
+                // Clear drag state variables
+                draggedEntry = null;
+                draggedPreset = null;
             }
         });
     }
@@ -772,16 +805,32 @@ class WeeklyPlanner {
         const durationHours = duration / 60;
         const endTime = startTime + durationHours;
         
-        console.log(`Checking placement: ${day} ${startTime}-${endTime} (${duration}min)`);
+        console.log(`canPlaceEntry: Checking ${day} ${startTime}-${endTime} (${duration}min)`);
+        console.log(`Current entries count: ${this.entries.length}`);
         
         // Check if it goes beyond the available time slots (24:00)
         if (endTime > 24) {
-            console.log('Failed: extends beyond 24:00');
+            console.log('canPlaceEntry: FAIL - extends beyond 24:00');
             return false;
         }
         
-        // Temporarily allow all placements for debugging
-        console.log('Placement OK (validation simplified)');
+        // Check for overlaps with existing entries
+        for (const existingEntry of this.entries) {
+            if (existingEntry.day === day) {
+                const existingStart = existingEntry.hour + (existingEntry.minute || 0) / 60;
+                const existingEnd = existingStart + (existingEntry.duration / 60);
+                
+                console.log(`Checking overlap with entry: ${existingStart}-${existingEnd}`);
+                
+                // Check if there's an overlap
+                if (startTime < existingEnd && endTime > existingStart) {
+                    console.log('canPlaceEntry: FAIL - overlap detected');
+                    return false;
+                }
+            }
+        }
+        
+        console.log('canPlaceEntry: SUCCESS - placement allowed');
         return true;
     }
 

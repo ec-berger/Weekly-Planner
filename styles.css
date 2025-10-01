@@ -192,24 +192,21 @@ header h1 {
 /* Entry Styles */
 .entry {
     position: absolute;
-    left: 2px;
-    right: 2px;
+    left: 4px;
+    right: 4px;
+    top: 2px;
     background: #58a6ff;
     color: #0d1117;
-    border-radius: 4px;
-    padding: 4px 6px;
+    border-radius: 6px;
+    padding: 8px 10px;
     font-size: 12px;
-    cursor: move;
+    cursor: grab;
     -webkit-user-select: none;
     user-select: none;
     z-index: 10;
     border: 1px solid rgba(255,255,255,0.1);
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-}
-
-.entry {
-    cursor: grab;
 }
 
 .entry:hover {
